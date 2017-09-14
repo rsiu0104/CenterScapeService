@@ -20,20 +20,25 @@ public class CenterScapeService extends AbstractVerticle {
     @Override
     public void start() {
         logger.info("CenterScape Service is running...");
-        CenterScapeAPIClient client = new CenterScapeAPIClient(vertx);
+
+        CenterScapeAPIClient client = new CenterScapeAPIClient(vertx, config());
 
         // Scheduler that runs periodically to get CS GUID-EPC Map.
         // TODO: use config
-        vertx.setPeriodic(10000, id ->{
+        vertx.setPeriodic(config().getInteger("cs.pollingPeriod", 10000), id ->{
             client.getIdentifierMap((ar -> {
                 if (ar.succeeded()) {
+                    logger.info("succeed");
                     IdentifierMap = ar.result();
                     logger.info("IdentifierMap: Received " + IdentifierMap.size() + " record(s).");
                 } else {
+                    logger.info("error?");
                     logger.error("Unable to retrieve the IdentifierMap: "
                             + ar.cause().getMessage());
                 }
             }));
+
+            logger.info("Here!");
         });
 
         // Consume eb messages.
@@ -80,7 +85,7 @@ public class CenterScapeService extends AbstractVerticle {
                 for (Map.Entry<String, JsonObject> entry : HashUpdates.entrySet()) {
                     client.putUpdates(entry.getKey(), entry.getValue(), (ar -> {
                         if (ar.succeeded()) {
-                            logger.info("Succeed!");
+                            logger.info("Put to CS API is successful!");
                         } else {
                             logger.error("Unable to put to CS API: " + ar.cause().getMessage());
                         }
