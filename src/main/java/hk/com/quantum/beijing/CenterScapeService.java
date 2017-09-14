@@ -20,15 +20,12 @@ public class CenterScapeService extends AbstractVerticle {
     @Override
     public void start() {
         logger.info("CenterScape Service is running...");
-
         CenterScapeAPIClient client = new CenterScapeAPIClient(vertx, config());
 
         // Scheduler that runs periodically to get CS GUID-EPC Map.
-        // TODO: use config
         vertx.setPeriodic(config().getInteger("cs.pollingPeriod", 10000), id ->{
             client.getIdentifierMap((ar -> {
                 if (ar.succeeded()) {
-                    logger.info("succeed");
                     IdentifierMap = ar.result();
                     logger.info("IdentifierMap: Received " + IdentifierMap.size() + " record(s).");
                 } else {
@@ -37,15 +34,13 @@ public class CenterScapeService extends AbstractVerticle {
                             + ar.cause().getMessage());
                 }
             }));
-
-            logger.info("Here!");
         });
 
         // Consume eb messages.
         vertx.eventBus().consumer("eb", message -> {
             HashMap<String, JsonObject> HashUpdates = new HashMap<String, JsonObject>();
 
-            // Corner case at initialization when IdentiMap is still empty.
+            // Corner case at initialization when IdentiMap is still empty. Don't do anything yet.
             if(IdentifierMap.size() > 0) {
                 JsonObject update = new JsonObject(message.body().toString());
 
@@ -67,7 +62,6 @@ public class CenterScapeService extends AbstractVerticle {
                             "EPC: " + Epc + " " +
                             "GUID: " + guid + " " +
                             "TS: " + formatUSec(TimeStampUSec));
-                    //                        "GUID of " + UpdateArray.getJsonObject(i).getString("epc") + " is " + guid);
 
                     // Algo to handle updates of the same EPC/GUID.
                     // Simple solution is to hash it.
@@ -93,8 +87,6 @@ public class CenterScapeService extends AbstractVerticle {
                 }
             }
         });
-
-
     }
     
     // Search for the JsonObject with EPC = 2106000000111 and return the value of GUID
