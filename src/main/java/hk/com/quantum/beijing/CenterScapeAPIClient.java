@@ -22,11 +22,9 @@ public class CenterScapeAPIClient {
     private String credentials;
     
     public CenterScapeAPIClient(Vertx vertx, JsonObject config) {
-        // Create the HTTP client and configure the host and post.
-        // TODO: Use config file instead.
 
+        // Create the HTTP client and configure the host and post.
         credentials = String.format("%s:%s", config.getString("cs.user"), config.getString("cs.password"));
-//        credentials = String.format("%s:%s", "admin", "Password1234");
 
         try {
             client = vertx.createHttpClient(new HttpClientOptions()
@@ -54,7 +52,7 @@ public class CenterScapeAPIClient {
                         // Handler called when the response is received
                         // We register a second handler to retrieve the body
                         response.bodyHandler(body -> {
-                            logger.debug(body.toJsonArray().encodePrettily());
+                            logger.trace(body.toJsonArray().encodePrettily());
                             // When the map is populated, invoke the result handler
                             handler.handle(Future.succeededFuture(body.toJsonArray()));
                         }))

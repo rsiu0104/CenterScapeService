@@ -1,7 +1,7 @@
 {
-  "cs.pollingPeriod" : 10000,
+  "cs.pollingPeriod" : 60000,
   "cs.host": "ha.qds.hk",
   "cs.port": 443,
   "cs.user": "admin",
-  "cs.password": ""
+  "cs.password": "tgXvUmy9"
 }
