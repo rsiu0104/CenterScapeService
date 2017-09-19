@@ -2,9 +2,9 @@
 
 CenterScape is an Data Center Management software. It has an HTTP REST API.
 
-This service is design to
-(1) periodically get all entity from CS and
-(2) update entity's detected location.
+This service is designed to
+1. Periodically get all entities from CS (getIdentityMap)
+1. Update entity's detected location from fixed and mobile readers (putUpdates)
 
 ## Customization at CenterScape
 1. Created "EPC" asset attribute with Record Value Changes = true, Values Are Unique = true
@@ -13,6 +13,11 @@ This service is design to
     * The ID is make up of READER_NAME + USER + TIMESTAMP
 1. Created "LAST_INVENTORY_TAKE_TIME" asset attribute  with Record Value Changes = true.
 1. Add "EPC" asset attribute to "Equipment" asset type and "Summary - Location" asset type
+1. Create "Reader" asset type to "Equipment" asset type.
+1. Create "LAST_HEART_BEAT" asset attribute with Record Value Changes = true.
+1. Add "LAST_HEART_BEAT" asset attribute to "Reader" asset type.
+
+
 
 
 ## Build

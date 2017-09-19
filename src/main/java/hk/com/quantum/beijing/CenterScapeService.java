@@ -57,6 +57,8 @@ public class CenterScapeService extends AbstractVerticle {
 
             // Assign Message to JsonArray of Updates
             JsonArray UpdateArray = update.getJsonArray("updates");
+            String reader = update.getString("reader_name");
+
             logger.info("Eventbus: Received " + UpdateArray.size() + " record(s)");
             message.reply(UpdateArray.size());
 
@@ -68,9 +70,16 @@ public class CenterScapeService extends AbstractVerticle {
                     String Epc = UpdateArray.getJsonObject(i).getString("epc");
                     String TimeStampStr = UpdateArray.getJsonObject(i).getString("first_seen_timestamp");
                     Long TimeStampUSec = Long.parseLong(TimeStampStr);
+                    boolean isHeartBeat = Objects.equals(Epc, "********");
+                    String guid = null;
 
                     // Find the GUID of the updates by EPC.
-                    String guid = getString("EPC", Epc, "guid");
+                    if (isHeartBeat) {
+                        guid = getString("$aName", reader, "guid");
+                    } else {
+                        guid = getString("EPC", Epc, "guid");
+                    }
+
                     logger.info("Rec " + i + ": " +
                             "EPC: " + Epc + " " +
                             "GUID: " + guid + " " +
@@ -84,6 +93,7 @@ public class CenterScapeService extends AbstractVerticle {
                         String EntityType = getString("guid", guid, "type");
                         EntityJson.put("type", EntityType);
                         EntityJson.put("$aDetectedLocation", "$tUnknownLocation");
+                        if (isHeartBeat) EntityJson.put("LAST_HEART_BEAT", TimeStampUSec);
                         HashUpdates.put(guid, EntityJson);
                     }
                 }
