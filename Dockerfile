@@ -1,16 +1,12 @@
 FROM openjdk:8-jre-alpine
 
-ENV VERTICLE_FILE CenterScapeService-1.0-SNAPSHOT.jar
-
-# Set the location of the verticles
-ENV VERTICLE_HOME /usr/verticles
-
-EXPOSE 8080
+EXPOSE 8083
 
 # Copy your fat jar to the container
-COPY target/$VERTICLE_FILE $VERTICLE_HOME/
+COPY target/*SNAPSHOT.jar /app.jar
+COPY src/conf/logging.properties /logging.properties
+COPY src/conf/config.json /config.json
 
-# Launch the verticle
-WORKDIR $VERTICLE_HOME
-ENTRYPOINT ["sh", "-c"]
-CMD ["exec java -jar $VERTICLE_FILE"]
+#ENTRYPOINT ["sh", "-c"]
+CMD ["/usr/bin/java", "-Djava.util.logging.config.file=/logging.properties", "-jar", "/app.jar", "--cluster", "-Djava.net.preferIPv4Stack=true", "-Djgroups.tcp.address=NON_LOOPBACK", "-conf", "/config.json"]
+#CMD ["exec java -Djava.util.logging.config.file=src\conf\logging.properties -jar $VERTICLE_FILE"]

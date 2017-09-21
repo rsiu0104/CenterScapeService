@@ -3,5 +3,6 @@
   "cs.host": "ha.qds.hk",
   "cs.port": 443,
   "cs.user": "admin",
-  "cs.password": "tgXvUmy9"
+  "cs.password": "",
+  "metric.pollingPeriod" : 120000
 }

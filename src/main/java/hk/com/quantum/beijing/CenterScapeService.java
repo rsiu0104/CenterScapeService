@@ -1,12 +1,16 @@
 package hk.com.quantum.beijing;
 
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
+import io.vertx.ext.dropwizard.DropwizardMetricsOptions;
+import io.vertx.ext.dropwizard.MetricsService;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -22,6 +26,16 @@ public class CenterScapeService extends AbstractVerticle {
     @Override
     public void start() {
         logger.info("CenterScape Service is running...");
+
+        // Initialization
+//        vertx = Vertx.vertx(new VertxOptions().setMetricsOptions(
+//                new DropwizardMetricsOptions()
+//                        .setEnabled(true)
+//                        .setJmxEnabled(true)
+//        ));
+        MetricsService service = MetricsService.create(vertx);
+        EventBus eb = vertx.eventBus();
+        MessageConsumer<JsonObject> consumer = eb.consumer("eb");
 
         // Once API Client is instantiated, let's get the first IdentifierMap instead of waiting for polling period to elapse.
         CenterScapeAPIClient client = new CenterScapeAPIClient(vertx, config());
@@ -48,9 +62,13 @@ public class CenterScapeService extends AbstractVerticle {
             }));
         });
 
+        // send metrics message to the event bus
+        vertx.setPeriodic(config().getInteger("metric.pollingperiod", 60000), t -> {
+            JsonObject metrics = service.getMetricsSnapshot(vertx);
+            eb.publish("microservice.monitor.metrics", metrics);
+        });
+
         // Consume eb messages.
-        EventBus eb = vertx.eventBus();
-        MessageConsumer<JsonObject> consumer = eb.consumer("eb");
         consumer.handler(message -> {
             HashMap<String, JsonObject> HashUpdates = new HashMap<String, JsonObject>();
             JsonObject update = new JsonObject(message.body().toString());
