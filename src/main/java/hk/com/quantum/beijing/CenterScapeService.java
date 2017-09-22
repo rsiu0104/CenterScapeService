@@ -22,6 +22,7 @@ public class CenterScapeService extends AbstractVerticle {
     private static final Logger logger = LoggerFactory.getLogger(CenterScapeService.class.getName());
 
     private JsonArray IdentifierMap = new JsonArray();
+    final static private int epochLength = String.valueOf((System.currentTimeMillis())).length();
 
     @Override
     public void start() {
@@ -76,44 +77,20 @@ public class CenterScapeService extends AbstractVerticle {
             // Assign Message to JsonArray of Updates
             JsonArray UpdateArray = update.getJsonArray("updates");
             String reader = update.getString("reader_name");
+            String reader_type = update.getString("reader_type");
 
             logger.info("Eventbus: Received " + UpdateArray.size() + " record(s)");
             message.reply(UpdateArray.size());
 
             // Corner case at initialization when IdentiMap is still empty. Don't do anything yet.
             if(IdentifierMap.size() > 0) {
-
-                // Iterate through the updates
-                for (int i = 0; i < UpdateArray.size(); i++) {
-                    String Epc = UpdateArray.getJsonObject(i).getString("epc");
-                    String TimeStampStr = UpdateArray.getJsonObject(i).getString("first_seen_timestamp");
-                    Long TimeStampUSec = Long.parseLong(TimeStampStr);
-                    boolean isHeartBeat = Objects.equals(Epc, "********");
-                    String guid = null;
-
-                    // Find the GUID of the updates by EPC.
-                    if (isHeartBeat) {
-                        guid = getString("$aName", reader, "guid");
-                    } else {
-                        guid = getString("EPC", Epc, "guid");
-                    }
-
-                    logger.info("Rec " + i + ": " +
-                            "EPC: " + Epc + " " +
-                            "GUID: " + guid + " " +
-                            "TS: " + formatUSec(TimeStampUSec));
-
-                    // Algo to handle updates of the same EPC/GUID.
-                    // Simple solution is to hash it and show the latest update. Right now the hashing is done in the SWC Service side.
-                    // TODO need to put in logic to handle heartbeat here.
-                    if (guid != null && !guid.isEmpty()){
-                        JsonObject EntityJson = new JsonObject();
-                        String EntityType = getString("guid", guid, "type");
-                        EntityJson.put("type", EntityType);
-                        EntityJson.put("$aDetectedLocation", "$tUnknownLocation");
-                        if (isHeartBeat) EntityJson.put("LAST_HEART_BEAT", TimeStampUSec);
-                        HashUpdates.put(guid, EntityJson);
-                    }
+                switch (reader_type) {
+                    case "FIXED":   HashUpdates = produceFixedReaderUpdates(UpdateArray, reader);
+                        break;
+                    case "MOBILE":  HashUpdates = produceMobileReaderUpdates(UpdateArray);
+                        break;
+                    default:        logger.error("Not a FIXED nor MOBILE reader!");
+                        break;
                 }
 
                 logger.info("HashUpdates (" + HashUpdates.size() + ") : " + HashUpdates.toString());
@@ -139,7 +116,85 @@ public class CenterScapeService extends AbstractVerticle {
             }
         });
     }
-    
+
+    private HashMap<String,JsonObject> produceFixedReaderUpdates(JsonArray UpdateArray, String reader) {
+        HashMap<String, JsonObject> HashUpdates = new HashMap<String, JsonObject>();
+
+        // Iterate through the updates
+        for (int i = 0; i < UpdateArray.size(); i++) {
+            JsonObject update = UpdateArray.getJsonObject(i);
+
+            String Epc = update.getString("epc");
+            String TimeStampStr = update.getString("first_seen_timestamp");
+            Long TimeStampUSec = formatTimeStamp(Long.parseLong(TimeStampStr));
+            boolean isHeartBeat = Objects.equals(Epc, "********");
+            String guid = null;
+
+            // Find the GUID of the updates by EPC.
+            if (isHeartBeat) {
+                guid = getString("$aName", reader, "guid");
+            } else {
+                guid = getString("EPC", Epc, "guid");
+            }
+
+            logger.info("Rec " + i + ": " +
+                    "EPC: " + Epc + " " +
+                    "GUID: " + guid + " " +
+                    "TS: " + formatUSec(TimeStampUSec));
+
+            // Algo to handle updates of the same EPC/GUID.
+            // Simple solution is to hash it and show the latest update. Right now the hashing is done in the SWC Service side.
+            if (guid != null && !guid.isEmpty()) {
+                JsonObject EntityJson = new JsonObject();
+                String EntityType = getString("guid", guid, "type");
+                EntityJson.put("type", EntityType);
+                EntityJson.put("$aDetectedLocation", "$tUnknownLocation");
+                if (isHeartBeat) EntityJson.put("LAST_HEART_BEAT", TimeStampUSec);
+                HashUpdates.put(guid, EntityJson);
+            }
+        }
+        return HashUpdates;
+    }
+
+    private HashMap<String,JsonObject> produceMobileReaderUpdates(JsonArray UpdateArray) {
+        HashMap<String, JsonObject> HashUpdates = new HashMap<String, JsonObject>();
+
+        // Iterate through the updates
+        for (int i = 0; i < UpdateArray.size(); i++) {
+            JsonObject update = UpdateArray.getJsonObject(i);
+
+            String Epc = update.getString("EPC");
+            Long TimeStampUSec = formatTimeStamp(update.getLong("LAST_INVENTORY_TAKE_TIME"));
+            String guid = null;
+
+            // Find the GUID of the updates by EPC.
+            guid = getString("EPC", Epc, "guid");
+
+            logger.info("Rec " + i + ": " +
+                    "EPC: " + Epc + " " +
+                    "GUID: " + guid + " " +
+                    "TS: " + formatUSec(TimeStampUSec));
+
+            // Algo to handle updates of the same EPC/GUID.
+            // Simple solution is to hash it and show the latest update. Right now the hashing is done in the SWC Service side.
+
+            // Make sure the guid that is sent over the eb and from CS matches!!!!
+            String SentGUID = update.getString("guid");
+            boolean GUIDMatch = Objects.equals(SentGUID, guid);
+
+            if (guid != null && !guid.isEmpty() && GUIDMatch) {
+                JsonObject EntityJson = update;
+                EntityJson.remove("guid");
+                EntityJson.put("LAST_INVENTORY_TAKE_TIME", TimeStampUSec);
+//                String EntityType = getString("guid", guid, "type");
+//                EntityJson.put("type", EntityType);
+//                EntityJson.put("$aDetectedLocation", "$tUnknownLocation");
+                HashUpdates.put(guid, EntityJson);
+            }
+        }
+        return HashUpdates;
+    }
+
     // Search for the JsonObject with EPC = 2106000000111 and return the value of GUID
     // getString("EPC", "210600000000111", "GUID") returns the GUID of 210600000000111
     private String getString (String SearchKey, String SearchValue, String ReturnKey) {
@@ -167,8 +222,25 @@ public class CenterScapeService extends AbstractVerticle {
         return ReturnValue;
     }
 
+    private static long formatTimeStamp (long ts) {
+        int exp = 0;
+        long stdTimeStamp = 0;
+
+        int length = String.valueOf(ts).length();
+        if (length == epochLength) {
+            stdTimeStamp = ts;
+        } else if (length < epochLength) {
+            exp = (int) Math.pow(10, (epochLength-length));
+            stdTimeStamp = ts * exp;
+        } else {
+            exp = (int) Math.pow(10, (length - epochLength));
+            stdTimeStamp = (long) ts / exp;
+        }
+        return stdTimeStamp;
+    }
+
     private static String formatUSec (long Microseconds) {
-        String date = new java.text.SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new java.util.Date (Microseconds/1000));
+        String date = new java.text.SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new java.util.Date (Microseconds));
         return date;
     }
 
