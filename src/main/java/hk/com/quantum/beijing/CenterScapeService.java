@@ -72,12 +72,12 @@ public class CenterScapeService extends AbstractVerticle {
         // Consume eb messages.
         consumer.handler(message -> {
             HashMap<String, JsonObject> HashUpdates = new HashMap<String, JsonObject>();
-            JsonObject update = new JsonObject(message.body().toString());
+            JsonObject body = new JsonObject(message.body().toString());
 
             // Assign Message to JsonArray of Updates
-            JsonArray UpdateArray = update.getJsonArray("updates");
-            String reader = update.getString("reader_name");
-            String reader_type = update.getString("reader_type");
+            JsonArray UpdateArray = body.getJsonArray("updates");
+            String reader = body.getString("reader_name");
+            String reader_type = body.getString("reader_type");
 
             logger.info("Eventbus: Received " + UpdateArray.size() + " record(s)");
             message.reply(UpdateArray.size());
@@ -85,11 +85,16 @@ public class CenterScapeService extends AbstractVerticle {
             // Corner case at initialization when IdentiMap is still empty. Don't do anything yet.
             if(IdentifierMap.size() > 0) {
                 switch (reader_type) {
-                    case "FIXED":   HashUpdates = produceFixedReaderUpdates(UpdateArray, reader);
+                    case "FIXED":
+                        HashUpdates = produceFixedReaderUpdates(UpdateArray, reader);
                         break;
-                    case "MOBILE":  HashUpdates = produceMobileReaderUpdates(UpdateArray);
+                    case "MOBILE":
+                        String user_name = body.getString("user_name");
+                        Long session_timestamp = body.getLong("session_timestamp");
+                        HashUpdates = produceMobileReaderUpdates(UpdateArray, reader, user_name, session_timestamp);
                         break;
-                    default:        logger.error("Not a FIXED nor MOBILE reader!");
+                    default:
+                        logger.error("Not a FIXED nor MOBILE reader!");
                         break;
                 }
 
@@ -140,7 +145,7 @@ public class CenterScapeService extends AbstractVerticle {
             logger.info("Rec " + i + ": " +
                     "EPC: " + Epc + " " +
                     "GUID: " + guid + " " +
-                    "TS: " + formatUSec(TimeStampUSec));
+                    "TS: " + formatUSec(TimeStampUSec, true));
 
             // Algo to handle updates of the same EPC/GUID.
             // Simple solution is to hash it and show the latest update. Right now the hashing is done in the SWC Service side.
@@ -156,8 +161,9 @@ public class CenterScapeService extends AbstractVerticle {
         return HashUpdates;
     }
 
-    private HashMap<String,JsonObject> produceMobileReaderUpdates(JsonArray UpdateArray) {
+    private HashMap<String,JsonObject> produceMobileReaderUpdates(JsonArray UpdateArray, String reader, String user_name, Long session_timestamp) {
         HashMap<String, JsonObject> HashUpdates = new HashMap<String, JsonObject>();
+        Long SessionTimeStampUSec = formatTimeStamp(session_timestamp);
 
         // Iterate through the updates
         for (int i = 0; i < UpdateArray.size(); i++) {
@@ -173,7 +179,7 @@ public class CenterScapeService extends AbstractVerticle {
             logger.info("Rec " + i + ": " +
                     "EPC: " + Epc + " " +
                     "GUID: " + guid + " " +
-                    "TS: " + formatUSec(TimeStampUSec));
+                    "TS: " + formatUSec(TimeStampUSec, true));
 
             // Algo to handle updates of the same EPC/GUID.
             // Simple solution is to hash it and show the latest update. Right now the hashing is done in the SWC Service side.
@@ -186,9 +192,10 @@ public class CenterScapeService extends AbstractVerticle {
                 JsonObject EntityJson = update;
                 EntityJson.remove("guid");
                 EntityJson.put("LAST_INVENTORY_TAKE_TIME", TimeStampUSec);
-//                String EntityType = getString("guid", guid, "type");
-//                EntityJson.put("type", EntityType);
-//                EntityJson.put("$aDetectedLocation", "$tUnknownLocation");
+                EntityJson.put("INVENTORY_TAKE_ID",
+                        reader.toUpperCase() + "-" +
+                        user_name.toUpperCase() + "-" +
+                        formatUSec(SessionTimeStampUSec, false));
                 HashUpdates.put(guid, EntityJson);
             }
         }
@@ -239,8 +246,12 @@ public class CenterScapeService extends AbstractVerticle {
         return stdTimeStamp;
     }
 
-    private static String formatUSec (long Microseconds) {
-        String date = new java.text.SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new java.util.Date (Microseconds));
+    private static String formatUSec (long Microseconds, boolean display) {
+        String date = null;
+        if (display)
+            date = new java.text.SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new java.util.Date (Microseconds));
+        else
+            date = new java.text.SimpleDateFormat("yyyyddMMHHmmss").format(new java.util.Date (Microseconds));
         return date;
     }
 

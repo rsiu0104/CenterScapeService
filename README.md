@@ -8,17 +8,15 @@ This service is designed to
 
 ## Customization at CenterScape
 1. Created "EPC" asset attribute with Record Value Changes = true, Values Are Unique = true
-1. Created "INVENTORY_TAKE_ID" asset attribute with Record Value Changes = true, Values Are Unique = true.
+1. Created "INVENTORY_TAKE_ID" asset attribute with Record Value Changes = true.
     * This is an unique ID of the inventory take.
     * The ID is make up of READER_NAME + USER + TIMESTAMP
 1. Created "LAST_INVENTORY_TAKE_TIME" asset attribute  with Record Value Changes = true.
-1. Add "EPC" asset attribute to "Equipment" asset type and "Summary - Location" asset type
+1. Add "EPC", "INVENTORY_TAKE_ID", "LAST_INVENTORY_TAKE_TIME" asset attributes to "Equipment" asset type.
+1. Add "EPC" asset attribute to "Summary - Location" asset type.
 1. Create "Reader" asset type to "Equipment" asset type.
 1. Create "LAST_HEART_BEAT" asset attribute with Record Value Changes = true.
 1. Add "LAST_HEART_BEAT" asset attribute to "Reader" asset type.
-
-
-
 
 ## Build
 
