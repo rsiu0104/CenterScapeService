@@ -1,15 +1,12 @@
 package hk.com.quantum.beijing;
 
 import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Vertx;
-import io.vertx.core.VertxOptions;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import io.vertx.ext.dropwizard.DropwizardMetricsOptions;
 import io.vertx.ext.dropwizard.MetricsService;
 
 import java.util.HashMap;
@@ -188,16 +185,17 @@ public class CenterScapeService extends AbstractVerticle {
             String SentGUID = update.getString("guid");
             boolean GUIDMatch = Objects.equals(SentGUID, guid);
 
-            if (guid != null && !guid.isEmpty() && GUIDMatch) {
-                JsonObject EntityJson = update;
-                EntityJson.remove("guid");
-                EntityJson.put("LAST_INVENTORY_TAKE_TIME", TimeStampUSec);
-                EntityJson.put("INVENTORY_TAKE_ID",
-                        reader.toUpperCase() + "-" +
-                        user_name.toUpperCase() + "-" +
-                        formatUSec(SessionTimeStampUSec, false));
-                HashUpdates.put(guid, EntityJson);
-            }
+            //if (guid != null && !guid.isEmpty() && GUIDMatch) {
+            // Not checking GUID and trust Mobile App
+            JsonObject EntityJson = update;
+            EntityJson.remove("guid");
+            EntityJson.put("LAST_INVENTORY_TAKE_TIME", TimeStampUSec);
+            EntityJson.put("INVENTORY_TAKE_ID",
+                    reader.toUpperCase() + "-" +
+                    user_name.toUpperCase() + "-" +
+                    formatUSec(SessionTimeStampUSec, false));
+            HashUpdates.put(SentGUID, EntityJson);
+            //}
         }
         return HashUpdates;
     }
@@ -251,7 +249,7 @@ public class CenterScapeService extends AbstractVerticle {
         if (display)
             date = new java.text.SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new java.util.Date (Microseconds));
         else
-            date = new java.text.SimpleDateFormat("yyyyddMMHHmmss").format(new java.util.Date (Microseconds));
+            date = new java.text.SimpleDateFormat("yyyyMMddHHmmss").format(new java.util.Date (Microseconds));
         return date;
     }
 
