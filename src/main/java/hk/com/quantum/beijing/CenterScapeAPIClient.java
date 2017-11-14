@@ -11,6 +11,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
+
 import java.util.Base64;
 
 public class CenterScapeAPIClient {
@@ -28,8 +29,8 @@ public class CenterScapeAPIClient {
 
         try {
             client = vertx.createHttpClient(new HttpClientOptions()
-                    .setSsl(true)
-                    .setTrustAll(true)
+                    .setSsl(config.getBoolean("cs.setSsl", false))
+                    .setTrustAll(config.getBoolean("cs.setSsl", false))
                     .setDefaultHost(config.getString("cs.host"))
                     .setDefaultPort(config.getInteger("cs.port", 8083))
                     .setVerifyHost(false)
