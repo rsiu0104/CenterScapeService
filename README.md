@@ -12,11 +12,15 @@ This service is designed to
     * This is an unique ID of the inventory take.
     * The ID is make up of READER_NAME + USER + TIMESTAMP
 1. Created "LAST_INVENTORY_TAKE_TIME" asset attribute  with Record Value Changes = true.
-1. Add "EPC", "INVENTORY_TAKE_ID", "LAST_INVENTORY_TAKE_TIME" asset attributes to "Equipment" asset type.
+1. Created "FIXED_READER_ID" asset attribute with Record Value Changes = true.
+1. Created "INVENTORY_DETECTED_LOCATION" asset attribute with type "Custom Type Reference" and Custom Attribute Type "Location" and Record Value Changes = true.
+1. Add "EPC", "INVENTORY_TAKE_ID", "LAST_INVENTORY_TAKE_TIME", "INVENTORY_DETECTED_LOCATION", "FIXED_READER_ID" asset attributes to "Equipment" asset type.
 1. Add "EPC" asset attribute to "Summary - Location" asset type.
-1. Create "Reader" asset type to "Equipment" asset type.
+1. Create "Reader" asset type to "Equipment\Peripheral" asset type.
 1. Create "LAST_HEART_BEAT" asset attribute with Record Value Changes = true.
-1. Add "LAST_HEART_BEAT" asset attribute to "Reader" asset type.
+1. Create "ALARM_IP" asset attribute with Record Value Changes = true.
+1. Add "LAST_HEART_BEAT", "ALARM_IP" asset attribute to "Reader" asset type.
+
 
 ## Build
 

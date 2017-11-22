@@ -7,7 +7,6 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import io.vertx.ext.dropwizard.MetricsService;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,16 +24,6 @@ public class CenterScapeService extends AbstractVerticle {
     public void start() {
         logger.info("CenterScape Service is running...");
 
-        // Initialization
-//        vertx = Vertx.vertx(new VertxOptions().setMetricsOptions(
-//                new DropwizardMetricsOptions()
-//                        .setEnabled(true)
-//                        .setJmxEnabled(true)
-//        ));
-        MetricsService service = MetricsService.create(vertx);
-        EventBus eb = vertx.eventBus();
-        MessageConsumer<JsonObject> consumer = eb.consumer("eb");
-
         // Once API Client is instantiated, let's get the first IdentifierMap instead of waiting for polling period to elapse.
         CenterScapeAPIClient client = new CenterScapeAPIClient(vertx, config());
         client.getIdentifierMap((ar -> {
@@ -45,6 +34,16 @@ public class CenterScapeService extends AbstractVerticle {
                 logger.error("Unable to retrieve the IdentifierMap: "
                         + ar.cause().getMessage());
             }
+
+            // Update SWC with IdentifierMap
+            vertx.eventBus().send("ReaderInfo", IdentifierMap, ar2 -> {
+                if (ar2.succeeded()) {
+                    logger.info("ReaderInfo Eventbus: Sent " + IdentifierMap.size() + " record(s)");
+                    logger.info("ReaderInfo Received reply: " + ar2.result().body());
+                } else {
+                    logger.error("Unable to send to ReaderInfo Eventbus: " + ar2.cause().getMessage());
+                }
+            });
         }));
 
         // Scheduler that runs periodically to get CS GUID-EPC Map.
@@ -58,15 +57,21 @@ public class CenterScapeService extends AbstractVerticle {
                             + ar.cause().getMessage());
                 }
             }));
+
+            // Update SWC with IdentifierMap
+            vertx.eventBus().send("ReaderInfo", IdentifierMap, ar2 -> {
+                if (ar2.succeeded()) {
+                    logger.info("ReaderInfo Eventbus: Sent " + IdentifierMap.size() + " record(s)");
+                    logger.info("ReaderInfo Received reply: " + ar2.result().body());
+                } else {
+                    logger.error("Unable to send to ReaderInfo Eventbus: " + ar2.cause().getMessage());
+                }
+            });
         });
 
-        // send metrics message to the event bus
-        vertx.setPeriodic(config().getInteger("metric.pollingperiod", 60000), t -> {
-            JsonObject metrics = service.getMetricsSnapshot(vertx);
-            eb.publish("microservice.monitor.metrics", metrics);
-        });
-
-        // Consume eb messages.
+        // Consume Inventory Messages.
+        EventBus eb = vertx.eventBus();
+        MessageConsumer<JsonObject> consumer = eb.consumer("Inventory");
         consumer.handler(message -> {
             HashMap<String, JsonObject> HashUpdates = new HashMap<String, JsonObject>();
             JsonObject body = new JsonObject(message.body().toString());
@@ -76,8 +81,7 @@ public class CenterScapeService extends AbstractVerticle {
             String reader = body.getString("reader_name");
             String reader_type = body.getString("reader_type");
 
-            logger.info("Eventbus: Received " + UpdateArray.size() + " record(s)");
-            message.reply(UpdateArray.size());
+            logger.info("Inventory Eventbus: Received " + UpdateArray.size() + " record(s)");
 
             // Corner case at initialization when IdentiMap is still empty. Don't do anything yet.
             if(IdentifierMap.size() > 0) {
@@ -108,6 +112,8 @@ public class CenterScapeService extends AbstractVerticle {
                     }));
                 }
             }
+
+            message.reply(HashUpdates.size());
         });
 
         consumer.completionHandler(res -> {
@@ -134,7 +140,7 @@ public class CenterScapeService extends AbstractVerticle {
 
             // Find the GUID of the updates by EPC.
             if (isHeartBeat) {
-                guid = getString("$aName", reader, "guid");
+                guid = getString("READER_NAME", reader, "guid");
             } else {
                 guid = getString("EPC", Epc, "guid");
             }
@@ -150,8 +156,12 @@ public class CenterScapeService extends AbstractVerticle {
                 JsonObject EntityJson = new JsonObject();
                 String EntityType = getString("guid", guid, "type");
                 EntityJson.put("type", EntityType);
-                EntityJson.put("$aDetectedLocation", "$tUnknownLocation");
-                if (isHeartBeat) EntityJson.put("LAST_HEART_BEAT", TimeStampUSec);
+                if (isHeartBeat) {
+                    EntityJson.put("LAST_HEART_BEAT", TimeStampUSec);
+                } else {
+                    EntityJson.put("INVENTORY_DETECTED_LOCATION", "$tUnknownLocation");
+                    EntityJson.put("FIXED_READER_ID", reader);
+                }
                 HashUpdates.put(guid, EntityJson);
             }
         }
@@ -191,8 +201,8 @@ public class CenterScapeService extends AbstractVerticle {
             EntityJson.remove("guid");
             EntityJson.put("LAST_INVENTORY_TAKE_TIME", TimeStampUSec);
             EntityJson.put("INVENTORY_TAKE_ID",
-                    reader.toUpperCase() + "-" +
-                    user_name.toUpperCase() + "-" +
+                    reader.toUpperCase() + "_" +
+                    user_name.toUpperCase() + "_" +
                     formatUSec(SessionTimeStampUSec, false));
             HashUpdates.put(SentGUID, EntityJson);
             //}

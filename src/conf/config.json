@@ -1,8 +1,8 @@
 {
   "cs.pollingPeriod" : 60000,
-  "cs.host": "ha.qds.hk",
-  "cs.port": 443,
-  "cs.user": "admin",
-  "cs.password": "",
-  "metric.pollingPeriod" : 120000
+  "cs.host": "localhost",
+  "cs.port": 6580,
+  "cs.setSsl": false,
+  "cs.user": "qds-middleware",
+  "cs.password": "qdsHA2017~18"
 }
