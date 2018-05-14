@@ -4,5 +4,8 @@
   "cs.port": 6580,
   "cs.setSsl": false,
   "cs.user": "qds-middleware",
-  "cs.password": "qdsHA2017~18"
+  "cs.password": "qdsHA2017~18",
+  "blacklists": {
+    "type": ["DOOR", "TEMPERATURE_HUMIDITY"]
+  }
 }

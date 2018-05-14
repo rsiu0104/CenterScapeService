@@ -45,10 +45,10 @@ public class CenterScapeAPIClient {
         client.close();
     }
 
-    public void getIdentifierMap (Handler<AsyncResult<JsonArray>> handler) {
+    public void getIdentifierMap (String url, Handler<AsyncResult<JsonArray>> handler) {
         // Emit a HTTP GET
         // TODO: Use config file.
-        client.get("/api/entity?filter=true&type=$tAsset&attribute=$aLocation&operator=eq&value=All",
+        client.get(url,
                 response ->
                         // Handler called when the response is received
                         // We register a second handler to retrieve the body

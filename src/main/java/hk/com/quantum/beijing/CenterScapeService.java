@@ -8,9 +8,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 public class CenterScapeService extends AbstractVerticle {
 
@@ -23,12 +21,12 @@ public class CenterScapeService extends AbstractVerticle {
     @Override
     public void start() {
         logger.info("CenterScape Service is running...");
-
+        String url = "/api/entity?filter=true&type=$tAsset&attribute=$aLocation&operator=eq&value=All";
         // Once API Client is instantiated, let's get the first IdentifierMap instead of waiting for polling period to elapse.
         CenterScapeAPIClient client = new CenterScapeAPIClient(vertx, config());
-        client.getIdentifierMap((ar -> {
+        client.getIdentifierMap(url, (ar -> {
             if (ar.succeeded()) {
-                IdentifierMap = ar.result();
+                IdentifierMap = filterIdentifierMap(ar.result());
                 logger.info("IdentifierMap: Received " + IdentifierMap.size() + " record(s).");
             } else {
                 logger.error("Unable to retrieve the IdentifierMap: "
@@ -48,9 +46,9 @@ public class CenterScapeService extends AbstractVerticle {
 
         // Scheduler that runs periodically to get CS GUID-EPC Map.
         vertx.setPeriodic(config().getInteger("cs.pollingPeriod", 10000), id ->{
-            client.getIdentifierMap((ar -> {
+            client.getIdentifierMap(url, (ar -> {
                 if (ar.succeeded()) {
-                    IdentifierMap = ar.result();
+                    IdentifierMap = filterIdentifierMap(ar.result());
                     logger.info("IdentifierMap: Received " + IdentifierMap.size() + " record(s).");
                 } else {
                     logger.error("Unable to retrieve the IdentifierMap: "
@@ -210,6 +208,42 @@ public class CenterScapeService extends AbstractVerticle {
         return HashUpdates;
     }
 
+      private JsonArray filterIdentifierMap(JsonArray map) {
+        JsonArray filteredMap = new JsonArray();
+
+//        Hard coded blacklist type for testing
+//        List<String> blackListType = new ArrayList<>();
+//        blackListType.add("DOOR");
+//        blackListType.add("TEMPERATURE_HUMIDITY");
+//
+//        JsonObject blackListType = new JsonObject();
+//        blackListType.put("type", blackListType);
+
+        List<String> blackListType = getStringListFromJsonArray(config().getJsonObject("blacklists").getJsonArray("type"));
+        logger.debug("blackListType: " + blackListType.toString());
+
+        logger.info("size: " + map.size());
+        for (int i = 0; i < map.size(); i++) {
+            JsonObject obj = map.getJsonObject(i);
+            String type = obj.getString("type");
+            boolean isBlackList = false;
+            Iterator<String> myIterator = blackListType.iterator();
+
+            while (myIterator.hasNext() && !isBlackList) {
+                String bltype = myIterator.next();
+                if (type.equals(bltype)) {
+                    isBlackList = true;
+                }
+            }
+            if(!isBlackList) {
+                filteredMap.add(obj);
+            }
+
+        }
+        logger.trace("map.size: " + map.size() + ", filteredMap Size: " + filteredMap.size());
+        return filteredMap;
+    }
+
     // Search for the JsonObject with EPC = 2106000000111 and return the value of GUID
     // getString("EPC", "210600000000111", "GUID") returns the GUID of 210600000000111
     private String getString (String SearchKey, String SearchValue, String ReturnKey) {
@@ -261,6 +295,15 @@ public class CenterScapeService extends AbstractVerticle {
         else
             date = new java.text.SimpleDateFormat("yyyyMMddHHmmss").format(new java.util.Date (Microseconds));
         return date;
+    }
+
+    private static List<String> getStringListFromJsonArray(JsonArray jArray) {
+        List<String> returnList = new ArrayList<String>();
+        for (int i = 0; i < jArray.size(); i++) {
+            String val = jArray.getString(i);
+            returnList.add(val);
+        }
+        return returnList;
     }
 
     public void stop(){
